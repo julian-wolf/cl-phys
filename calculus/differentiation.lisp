@@ -4,7 +4,8 @@
   "Try to analytically differentiate an
 expression expr with respect to variable var."
   (cond
-    ((number-p expr) 0)
+    ((number-p expr)
+     0)
     ((variable-p expr)
      (if (same-variable-p expr var)
 	 1
@@ -12,17 +13,17 @@ expression expr with respect to variable var."
     ((sum-p expr)
      (make-sum (loop for summand in (summands expr)
 		  collecting (differentiate-analytic summand var))))
-    ((product-p expr)
+     ((product-p expr)
      (let ((multiplicands (multiplicands expr)))
        (make-sum (loop for multiplicand in multiplicands
 		    for i from 0
 		    collecting
-		      (make-product (cons (differentiate-analytic multiplicand
-								  var)
-					  (loop for multiplier in multiplicands
-					     for j from 0
-					     unless (= i j)
-					     collecting multiplier)))))))
+		      (make-product
+		       (cons (differentiate-analytic multiplicand  var)
+			     (loop for multiplier in multiplicands
+				for j from 0
+				unless (= i j)
+				collect multiplier)))))))
     ((sin-p expr)
      (make-product (differentiate-analytic (argument expr) var)
 		   (make-cos (argument expr))))
@@ -61,18 +62,21 @@ expression expr with respect to variable var."
 
 (defun eval-derivative-numeric (expr var values-plist
 				&optional (epsilon 1.0d-6))
-  (let ((expr-function (expression->function expr)))
-    (/ (- (apply expr-function (loop with at-val = nil
-				  for val in values-plist
-				  if at-val
-				  collect (+ val epsilon) and
-				  do (setf at-val nil)
-				  else
-				  collect val
-				  when (and (symbolp val)
-					    (eq (find-symbol (string val))
-						(find-symbol (string var))))
-				  do (setf at-val t)))
-	  (apply expr-function values-plist))
-       epsilon)))
+  (let ((expr-function (expression->function expr))
+	(var-symbol (find-symbol (string var))))
+    (labels ((increment-var (values-plist)
+	       (if (null values-plist)
+		   nil
+		   (let ((key (car value-plist))
+			 (val (cadr values-plist)))
+		     (cons key
+			   (cons (if (eq (find-symbol (string key))
+					 var-symbol)
+				     (+ val epsilon)
+				     val)
+				 (increment-var
+				  (cddr values-plist))))))))
+      (/ (- (apply expr-function (increment-var values-plist))
+	    (apply expr-function values-plist))
+	 epsilon))))
 

@@ -12,26 +12,31 @@
 
 ;;; functions to make arithmetic expressions
 (defmacro make-make-expression-body (combiner arg-list identity-value)
-  `(let* ((arg-list (unnest ,arg-list))
-	  (nested-expressions (remove-if-not #'(lambda (arg)
-						 (and (listp arg)
-						      (eq (car arg)
-							  combiner)))
-					     arg-list))
-	  (nested-expression-args (apply #'append
-					 (mapcar #'cdr
-						 nested-expressions)))
-	  (arg-list (append nested-expression-args arg-list))
-	  (numbers (remove-if-not #'number-p arg-list))
-	  (non-numbers (remove-if #'number-p arg-list))
-	  (number-value (apply ,combiner numbers))
-	  (new-arg-list (if (eq number-value ,identity-value)
-			    non-numbers
-			    (cons number-value non-numbers))))
-     (case (length new-arg-list)
-       (0 ,identity-value)
-       (1 (car new-arg-list))
-       (otherwise (cons ,combiner new-arg-list)))))
+  `(labels ((remove-nested-expressions (arg-list)
+	      (let ((arg (car arg-list)))
+		(cond
+		  ((null arg)
+		   nil)
+		  ((and (listp arg)
+			(eq (car arg)
+			    ,combiner))
+		   (append (cdr arg)
+			   (remove-nested-expressions
+			    (cdr arg-list))))
+		  (t
+		   (cons arg (remove-nested-expressions
+			      (cdr arg-list))))))))
+     (let* ((arg-list (remove-nested-expressions (unnest ,arg-list)))
+	    (numbers (remove-if-not #'number-p arg-list))
+	    (non-numbers (remove-if #'number-p arg-list))
+	    (number-value (apply ,combiner numbers))
+	    (new-arg-list (if (eq number-value ,identity-value)
+			      non-numbers
+			      (cons number-value non-numbers))))
+       (case (length new-arg-list)
+	 (0 ,identity-value)
+	 (1 (car new-arg-list))
+	 (otherwise (cons ,combiner new-arg-list))))))
 
 ;; basic arithmetic
 (defun make-sum (&rest expressions)
@@ -88,9 +93,11 @@
 (defparameter *all-predicate-functions* nil)
 
 (defmacro make-expression-predicate (name function-name)
-  `(defun ,name (expr)
-     (and (listp expr) (eq (car expr) ,function-name)))
-  `(push ,function-name *all-predicate-functions*))
+  `(progn
+     (defun ,name (expr)
+       (and (listp expr)
+	    (eq (car expr) ,function-name)))
+     (push ,function-name *all-predicate-functions*)))
 
 ;; basic arithmetic
 (make-expression-predicate sum-p '+)
