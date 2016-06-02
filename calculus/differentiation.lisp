@@ -57,15 +57,22 @@ expression expr with respect to variable var."
 	      :expression expr))))
 
 (defun eval-derivative-analytic (expr var values-plist)
+  "Analytically evaluate the derivative of an expression expr
+with respect to the variable var at the point described by
+values-plist."
   (apply (expression->function
 	  (differentiate-analytic expr var))
 	 values-plist))
 
 (defun eval-derivative-numeric (expr var values-plist
 				&optional (epsilon 1.0d-7))
+  "Numerically evaluate the derivative of an expression expr
+with respect to the variable var at the point described by
+values-plist."
   (let ((expr-function (expression->function expr))
 	(var-symbol (find-symbol (string var))))
     (labels ((increment-var (values-plist)
+	       ;; Increment the variable var by epsilon.
 	       (if (null values-plist)
 		   nil
 		   (let ((key (car values-plist))

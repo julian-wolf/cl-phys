@@ -5,6 +5,8 @@
    (expression :initarg :expression :reader expression)))
 
 (defun unnest (expression)
+  "Make sure that an expression is a simple list,
+not a list inside a list."
   (if (and (listp (car expression))
 	   (eq (length expression) 1))
       (car expression)
@@ -13,7 +15,14 @@
 ;;; functions to make arithmetic expressions
 (defmacro make-make-expression-body (combiner arg-list identity-value
 				     flattener-function)
+  "Generate the body of a make-expression style function,
+namely make-sum or make-product. This attempts to
+simplify the expression as much as possible."
   `(labels ((remove-nested-expressions (arg-list)
+	      ;; Remove nested expressions of the same
+	      ;; type as the surrounding expression.
+	      ;; For example, (+ x (+ 2 y)) is equivalent
+	      ;; to (+ x 2 y).
 	      (let ((arg (car arg-list)))
 		(cond
 		  ((null arg)
@@ -28,6 +37,10 @@
 		   (cons arg (remove-nested-expressions
 			      (cdr arg-list)))))))
 	    (find-equivalent-expressions (arg-list expr-list)
+	      ;; Group like arguments together into an
+	      ;; alist with entries such that (first entry)
+	      ;; holds a subexpression and (second entry)
+	      ;; holds the number of times that it occurs.
 	      (let ((arg (car arg-list)))
 		(cond
 		  ((null arg)
@@ -53,6 +66,10 @@
 						(cons (list arg 1)
 						      expr-list))))))
 	    (remove-equivalent-args (expr-list)
+	      ;; Given an alist such as that returned
+	      ;; by find-equivalent-expressions, create
+	      ;; an argument list joining each entry
+	      ;; by flattener-function.
 	      (let ((arg-pair (car expr-list)))
 		(cond
 		  ((null arg-pair)
@@ -66,6 +83,11 @@
 				  (cadr arg-pair))
 			 (remove-equivalent-args (cdr expr-list)))))))
 	    (remove-equivalent-expressions (arg-list)
+	      ;; Group all repeated arguments together
+	      ;; using flattener-function. For example,
+	      ;; (+ x 2 y x x) is equivalent to
+	      ;; (+ (* 3 x) 2 y) and (* x 2 y x x) is
+	      ;; equivant to (* (expt x 3) 2 y).
 	      (remove-equivalent-args (find-equivalent-expressions
 				     arg-list nil))))
      (let* ((arg-list (remove-equivalent-expressions
@@ -83,43 +105,55 @@
 
 ;; basic arithmetic
 (defun make-sum (&rest expressions)
+  "Construct a sum object, given a list of arguments."
   (make-make-expression-body '+ expressions 0 #'make-product))
 
 (defun make-product (&rest expressions)
+  "Construct a product object, given a list of arguments."
   (if (find 0 (unnest expressions))
       0
       (make-make-expression-body '* expressions 1 #'make-pow)))
 
 (defun make-difference (&rest expressions)
+  "Construct a difference (subtraction) object, given a
+list of arguments."
   (let ((expressions (unnest expressions)))
     (make-sum (car expressions)
 	      (make-product -1 (make-sum (cdr expressions))))))
 
 (defun make-quotient (&rest expressions)
+  "Construct a quotient (division) object, given a list
+of arguments."
   (let ((expressions (unnest expressions)))
     (make-product (car expressions)
 		  (make-pow (make-product (cdr expressions)) -1))))
 
 ;; trigonometry
 (defun make-sin (expression)
+  "Construct a sin object, given an argument."
   (list 'sin expression))
 
 (defun make-cos (expression)
+  "Construct a cos object, given an argument."
   (list 'cos expression))
 
 (defun make-tan (expression)
+  "Construct a tan object, given an argument."
   (list 'tan expression))
 
 ;; other functions
 (defun make-exp (expression)
+  "Construct an exponent object, given an argument."
   (list 'exp expression))
 
 (defun make-log (expression)
+  "Construct a logarithm object, given an argument."
   (list 'log expression))
 
 (defun make-pow (base power)
+  "Construct an exponentiation object, given a base
+and a power."
   (list 'expt base power))
-
 
 ;;; predicates to test the types of arithmetic expressions
 (defun number-p (var)
@@ -185,15 +219,19 @@
 
 ;; basic arithmetic
 (defun summands (expr)
+  "Get the summands (arguments) of a sum."
   (make-expression-args-body #'sum-p #'cdr
 			     "Expression is not a sum."))
 
 (defun multiplicands (expr)
+  "Get the multiplicands (arguments) of a product."
   (make-expression-args-body #'product-p #'cdr
 			     "Expression is not a product."))
 
 ;; every expression that takes a single argument
 (defun argument (expr)
+  "Get the argument of an arithmetic function
+that takes a single argument."
   (make-expression-args-body #'(lambda (expr)
 				  (or (sin-p expr)
 				      (cos-p expr)
@@ -205,26 +243,22 @@
 
 ;; exponentiation (powers)
 (defun base (expr)
+  "Get the base (first argument) of an exponentiation."
   (make-expression-args-body #'pow-p #'cadr
 			     "Only pow expressions have well-defined bases."))
 
 (defun power (expr)
+  "Get the power (second argument) of an exponentiation."
   (make-expression-args-body #'pow-p #'caddr
 			     "Only pow expressions have well-defined powers."))
 
-(defun get-variables (expr)
-    (cond
-      ((variable-p (car expr))
-       (cons (car expr)
-	     (get-variables (cdr expr))))
-      ((arithmetic-expression-p (car expr))
-       (append (get-variables (car expr))
-	       (get-variables (cdr expr))))
-      (t
-       (get-variables (cdr expr)))))
-
 (defun expression->function (expr)
+  "Turn an expression into a function."
   (labels ((convert-expression (expr)
+	     ;; Intern all of the variables found in an
+	     ;; expression expr. Return a new expression,
+	     ;; with all variables interned, and a list
+	     ;; of variables that have been interned.
 	     (cond
 	       ((null expr)
 		(values nil nil))
