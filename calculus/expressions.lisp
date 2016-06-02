@@ -11,7 +11,8 @@
       expression))
 
 ;;; functions to make arithmetic expressions
-(defmacro make-make-expression-body (combiner arg-list identity-value)
+(defmacro make-make-expression-body (combiner arg-list identity-value
+				     flattener-function)
   `(labels ((remove-nested-expressions (arg-list)
 	      (let ((arg (car arg-list)))
 		(cond
@@ -25,8 +26,50 @@
 			    (cdr arg-list))))
 		  (t
 		   (cons arg (remove-nested-expressions
-			      (cdr arg-list))))))))
-     (let* ((arg-list (remove-nested-expressions (unnest ,arg-list)))
+			      (cdr arg-list)))))))
+	    (find-equivalent-expressions (arg-list expr-list)
+	      (let ((arg (car arg-list)))
+		(cond
+		  ((null arg)
+		   expr-list)
+		  ((variable-or-expression-p arg)
+		   (let ((existing-expr
+			  (find arg expr-list
+				:test (lambda (val pair)
+					(same-variable-or-expression-p
+					 val (car pair))))))
+			 (find-equivalent-expressions
+			  (cdr arg-list)
+			  (if existing-expr
+			      (cons (list arg (1+ (cadr existing-expr)))
+				    (remove arg expr-list
+					    :test (lambda (val pair)
+						    (same-variable-or-expression-p
+						     val (car pair)))))
+			      (cons (list arg 1)
+				    expr-list)))))
+		  (t
+		   (find-equivalent-expressions (cdr arg-list)
+						(cons (list arg 1)
+						      expr-list))))))
+	    (remove-equivalent-args (expr-list)
+	      (let ((arg-pair (car expr-list)))
+		(cond
+		  ((null arg-pair)
+		   nil)
+		  ((eq (cadr arg-pair) 1)
+		   (cons (car arg-pair)
+			 (remove-equivalent-args (cdr expr-list))))
+		  (t
+		   (cons (funcall ,flattener-function
+				  (car arg-pair)
+				  (cadr arg-pair))
+			 (remove-equivalent-args (cdr expr-list)))))))
+	    (remove-equivalent-expressions (arg-list)
+	      (remove-equivalent-args (find-equivalent-expressions
+				     arg-list nil))))
+     (let* ((arg-list (remove-equivalent-expressions
+		       (remove-nested-expressions (unnest ,arg-list))))
 	    (numbers (remove-if-not #'number-p arg-list))
 	    (non-numbers (remove-if #'number-p arg-list))
 	    (number-value (apply ,combiner numbers))
@@ -40,12 +83,12 @@
 
 ;; basic arithmetic
 (defun make-sum (&rest expressions)
-  (make-make-expression-body '+ expressions 0))
+  (make-make-expression-body '+ expressions 0 #'make-product))
 
 (defun make-product (&rest expressions)
   (if (find 0 (unnest expressions))
       0
-      (make-make-expression-body '* expressions 1)))
+      (make-make-expression-body '* expressions 1 #'make-pow)))
 
 (defun make-difference (&rest expressions)
   (let ((expressions (unnest expressions)))
@@ -118,7 +161,20 @@
 (defun arithmetic-expression-p (expr)
   (and (listp expr)
        (find (car expr) *all-predicate-functions*)))
-  
+
+(defun same-arithmetic-expression-p (lhs rhs)
+  (and (arithmetic-expression-p lhs)
+       (arithmetic-expression-p rhs)
+       (equal lhs rhs)))
+
+(defun variable-or-expression-p (expr)
+  (or (variable-p expr)
+      (arithmetic-expression-p expr)))
+
+(defun same-variable-or-expression-p (lhs rhs)
+  (or (same-variable-p lhs rhs)
+      (same-arithmetic-expression-p lhs rhs)))
+
 ;;; functions to get the arguments of arithmetic expressions
 (defmacro make-expression-args-body (test element-accessor fail-message)
   `(if (apply ,test (list expr))
@@ -177,7 +233,7 @@
 		  (converted-expression variable-list)
 	          (convert-expression (cdr expr))
 		  (values (cons (car expr)
-				(convert-expression (cdr expr)))
+				converted-expression)
 			  variable-list)))
 	       ((listp expr)
 		(let ((arg (car expr)))
@@ -200,8 +256,8 @@
 			 (convert-expression arg)
 			 (values (cons converted-expression-arg
 				       converted-expression)
-				 (cons variable-list-arg
-				       variable-list))))
+				 (append variable-list-arg
+					 variable-list))))
 		      (t
 		       (error "Expression not of supported list type."))))))
 	       ((variable-p expr)
@@ -214,6 +270,9 @@
     (multiple-value-bind
       (converted-expression variable-list)
       (convert-expression expr)
-      (coerce `(lambda ,(cons '&key (remove-duplicates variable-list))
-		 ,converted-expression)
+      (coerce `(lambda ,(cons '&key
+			      (mapcar (lambda (var)
+					(list var 0))
+				      (remove-duplicates variable-list)))
+		 ,converted-expression) ; TODO: account for unexpected variables
 	      'function))))

@@ -11,8 +11,9 @@ expression expr with respect to variable var."
 	 1
 	 0))
     ((sum-p expr)
-     (make-sum (loop for summand in (summands expr)
-		  collecting (differentiate-analytic summand var))))
+     (make-sum (mapcar (lambda (summand)
+			 (differentiate-analytic summand var))
+		       (summands expr))))
      ((product-p expr)
      (let ((multiplicands (multiplicands expr)))
        (make-sum (loop for multiplicand in multiplicands
@@ -61,13 +62,13 @@ expression expr with respect to variable var."
 	 values-plist))
 
 (defun eval-derivative-numeric (expr var values-plist
-				&optional (epsilon 1.0d-6))
+				&optional (epsilon 1.0d-7))
   (let ((expr-function (expression->function expr))
 	(var-symbol (find-symbol (string var))))
     (labels ((increment-var (values-plist)
 	       (if (null values-plist)
 		   nil
-		   (let ((key (car value-plist))
+		   (let ((key (car values-plist))
 			 (val (cadr values-plist)))
 		     (cons key
 			   (cons (if (eq (find-symbol (string key))
