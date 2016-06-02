@@ -1,3 +1,5 @@
+(in-package :cl-phys.calculus)
+
 (defun differentiate-analytic (expr var)
   "Try to analytically differentiate an
 expression expr with respect to variable var."

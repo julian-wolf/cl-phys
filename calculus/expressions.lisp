@@ -1,3 +1,5 @@
+(in-package :cl-phys.calculus)
+
 (define-condition bad-math-expression-error (error)
   ((message :initarg :message :reader message)
    (expression :initarg :expression :reader expression)))
@@ -10,17 +12,26 @@
 
 ;;; functions to make arithmetic expressions
 (defmacro make-make-expression-body (combiner arg-list identity-value)
-      `(let* ((arg-list (unnest ,arg-list))
-	      (numbers (remove-if-not #'number-p arg-list))
-	      (non-numbers (remove-if #'number-p arg-list))
-	      (number-value (apply ,combiner numbers))
-	      (new-arg-list (if (eq number-value ,identity-value)
-				non-numbers
-				(cons number-value non-numbers))))
-	 (case (length new-arg-list)
-	   (0 ,identity-value)
-	   (1 (car new-arg-list))
-	   (otherwise (cons ,combiner new-arg-list)))))
+  `(let* ((arg-list (unnest ,arg-list))
+	  (nested-expressions (remove-if-not #'(lambda (arg)
+						 (and (listp arg)
+						      (eq (car arg)
+							  combiner)))
+					     arg-list))
+	  (nested-expression-args (apply #'append
+					 (mapcar #'cdr
+						 nested-expressions)))
+	  (arg-list (append nested-expression-args arg-list))
+	  (numbers (remove-if-not #'number-p arg-list))
+	  (non-numbers (remove-if #'number-p arg-list))
+	  (number-value (apply ,combiner numbers))
+	  (new-arg-list (if (eq number-value ,identity-value)
+			    non-numbers
+			    (cons number-value non-numbers))))
+     (case (length new-arg-list)
+       (0 ,identity-value)
+       (1 (car new-arg-list))
+       (otherwise (cons ,combiner new-arg-list)))))
 
 ;; basic arithmetic
 (defun make-sum (&rest expressions)
@@ -188,7 +199,7 @@
 		       (error "Expression not of supported list type."))))))
 	       ((variable-p expr)
 		(let ((interned-expr (intern (symbol-name expr))))
-		  (values interned-expr interned-expr)))
+		  (values interned-expr (cons interned-expr nil))))
 	       ((number-p expr)
 		(values expr nil))
 	       (t
