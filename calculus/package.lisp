@@ -4,6 +4,7 @@
 	   :eval-derivative-analytic
 	   :eval-derivative-numeric
 	   :expression->function
+	   :make-arithmetic-expression
 	   :make-sum
 	   :make-product
 	   :make-difference

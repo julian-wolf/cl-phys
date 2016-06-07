@@ -155,6 +155,35 @@ of arguments."
 and a power."
   (list 'expt base power))
 
+(defun make-arithmetic-expression (expr)
+  (cond
+    ((arithmetic-expression-p expr)
+     (let ((rest-of-expression (mapcar #'make-arithmetic-expression
+				       (cdr expr))))
+       (cond
+	 ((sum-p expr)
+	  (make-sum rest-of-expression))
+	 ((product-p expr)
+	  (make-product rest-of-expression))
+	 ((sin-p expr)
+	  (make-sin rest-of-expression))
+	 ((cos-p expr)
+	  (make-cos rest-of-expression))
+	 ((tan-p expr)
+	  (make-tan rest-of-expression))
+	 ((exp-p expr)
+	  (make-exp rest-of-expression))
+	 ((log-p expr)
+	  (make-log rest-of-expression))
+	 ((pow-p expr)
+	  (make-pow rest-of-expression))
+	 (t
+	  (error "unsupported operation")))))
+     ((listp expr)
+      (mapcar #'make-arithmetic-expression expr))
+     (t
+      expr)))
+
 ;;; predicates to test the types of arithmetic expressions
 (defun number-p (var)
   (numberp var))
@@ -193,8 +222,8 @@ and a power."
 (make-expression-predicate pow-p 'expt)
 
 (defun arithmetic-expression-p (expr)
-  (and (listp expr)
-       (find (car expr) *all-predicate-functions*)))
+  (when (listp expr)
+    (find (car expr) *all-predicate-functions*)))
 
 (defun same-arithmetic-expression-p (lhs rhs)
   (and (arithmetic-expression-p lhs)
