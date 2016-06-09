@@ -1,4 +1,4 @@
-(in-package :cl-phys.calculus)
+(in-package :cl-phys.math)
 
 (defun differentiate-analytic (expr var)
   "Try to analytically differentiate an

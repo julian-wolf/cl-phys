@@ -7,6 +7,6 @@ useful fitting and data visualization methods
 into a convenient suite for Common Lisp."
   :depends-on (#:cl-phys.fitting
                ; #:cl-phys.visualization
-               #:cl-phys.calculus)
+               #:cl-phys.math)
   :components ((:file "package"))
   :serial t)

@@ -1,4 +1,4 @@
-(defpackage #:cl-phys.calculus
+(defpackage #:cl-phys.math
   (:use :cl)
   (:export :differentiate-analytic
            :eval-derivative-analytic

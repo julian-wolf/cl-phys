@@ -1,4 +1,4 @@
-(in-package :cl-phys.calculus)
+(in-package :cl-phys.math)
 
 (defun matrix-transpose (original-matrix)
   (let* ((m (array-dimension original-matrix 0))

@@ -1,4 +1,4 @@
-(in-package :cl-phys.calculus)
+(in-package :cl-phys.math)
 
 (define-condition bad-math-expression-error (error)
   ((message :initarg :message :reader message)
