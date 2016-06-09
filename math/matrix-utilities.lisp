@@ -30,5 +30,5 @@
                                                (aref other-matrix j k))))))
                matrix-product)
              (error "Matrix dimensions must match."))))
-         (otherwise (matrix-multiply matrix
-                                     `(matrix-multiply ,@other-matrices)))))
+    (otherwise (matrix-multiply matrix
+                                (apply #'matrix-multiply other-matrices)))))
