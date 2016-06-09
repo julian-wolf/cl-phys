@@ -117,7 +117,7 @@ supplied-var-list and remove any extra elements from the latter."
       (loop for supplied-var in supplied-var-list
          when (find supplied-var generated-var-list :test #'equal)
          collect it)
-      (error "supplied-var-list does not contain all necessary variables.")))
+      (error "Supplied-var-list does not contain all necessary variables.")))
 
 (defun jacobian (expr var var-values parameter-values-plist)
   "Construct the jacobian of expr for values of var given
