@@ -5,4 +5,6 @@
            :eval-derivative-numeric
            :expression->function
            :make-arithmetic-expression
-           :valid-expression-types))
+           :valid-expression-types
+           :matrix-transpose
+           :matrix-multiply))
