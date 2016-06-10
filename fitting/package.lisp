@@ -1,2 +1,4 @@
 (defpackage #:cl-phys.fitting
-  (:use :cl))
+  (:use :cl
+        :cl-phys.math)
+  (:export :least-squares))
