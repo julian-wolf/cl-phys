@@ -212,14 +212,14 @@ of arguments."
 and a power."
   (list 'expt base power))
 
-(defun make-arithmetic-expression (expr)
+(defun make-expression (expr)
   (cond
     ((arithmetic-expression-p expr)
      (apply (%expression-maker (car expr))
-            (mapcar #'make-arithmetic-expression
+            (mapcar #'make-expression
                     (cdr expr))))
     ((listp expr)
-     (mapcar #'make-arithmetic-expression expr))
+     (mapcar #'make-expression expr))
     (t
      expr)))
 

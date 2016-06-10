@@ -4,7 +4,9 @@
            :eval-derivative-analytic
            :eval-derivative-numeric
            :expression->function
-           :make-arithmetic-expression
+           :make-expression
            :valid-expression-types
+           :jacobian
            :matrix-transpose
-           :matrix-multiply))
+           :matrix-multiply
+           :solve-system))
