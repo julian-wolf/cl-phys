@@ -79,6 +79,30 @@ given of mixed types."))
     (otherwise (matrix-multiply matrix
                                 (apply #'matrix-multiply other-matrices)))))
 
+(defgeneric diagonal-matrix (diagonals)
+  (:documentation "Create a diagonal square matrix
+with elements given by diagonals."))
+
+(defmethod diagonal-matrix ((diagonals cons))
+  (let* ((n (length diagonals))
+         (matrix (make-array (list n n)
+                             :initial-element 0)))
+    (do ((k 0 (1+ k)))
+        ((= k n))
+      (setf (aref matrix k k)
+            (nth k diagonals)))
+    matrix))
+
+(defun identity-matrix (n)
+  "Create an n-by-n identity matrix."
+  (let ((matrix (make-array (list n n)
+                            :initial-element 0)))
+    (do ((k 0 (1+ k)))
+        ((= k n))
+      (setf (aref matrix k k)
+            1))
+    matrix))
+
 (defgeneric solve-system (matrix input-vector)
   (:documentation "Solve a system A x = b for x, given
 the matrix A and the input-vector b. Methods should

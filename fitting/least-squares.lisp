@@ -1,45 +1,62 @@
 (in-package :cl-phys.fitting)
 
 (defun least-squares (expr var data initial-guesses-plist
-                      &key
-                        (fitting-function (expression->function expr))
-                        (epsilon 1d-7)
-                        (jacobian^T nil)
-                        (jacobian^T-jacobian nil))
-  (let* ((xdata (mapcar #'car data))
-         (ydata-true (mapcar #'cadr data))
-         (ydata-fitted (mapcar (lambda (datum)
+                      &key (epsilon 1d-6) (maximum-iterations 30))
+  (multiple-value-bind
+        (xdata ydata-true eydata)
+      (all-data data)
+    (let* ((interned-var (intern (symbol-name var)
+                                 "KEYWORD"))
+           (fitting-function (expression->function expr))
+           (y-variances (if ydata-true
+                            (mapcar (lambda (datum)
+                                      (expt datum 2))
+                                    eydata)
+                            (mapcar (lambda (_)
+                                      1)
+                                    ydata-true)))
+           (weight-matrix (diagonal-matrix (mapcar (lambda (datum)
+                                                     (/ 1 datum))
+                                                   y-variances)))
+           (number-of-iterations 0))
+      (labels ((least-squares-fit (fitting-function guesses-plist)
+                 (incf number-of-iterations)
+                 (let* ((ydata-fitted (mapcar (lambda (datum)
+                                                (apply fitting-function
+                                                       (cons interned-var
+                                                             (cons datum
+                                                                   guesses-plist))))
+                                              xdata))
+                        (residuals (mapcar #'- ydata-true ydata-fitted))
+                        (jacobian (jacobian expr var xdata guesses-plist))
+                        (jacobian^T (matrix-multiply (matrix-transpose jacobian)
+                                                     weight-matrix))
+                        (jacobian^T-jacobian (matrix-multiply jacobian^T
+                                                              jacobian))
+                        (jacobian^T-residuals (matrix-multiply jacobian^T residuals))
+                        (changes-to-guesses (solve-system jacobian^T-jacobian
+                                                          jacobian^T-residuals))
+                        (new-guesses-plist
+                         (loop for change across changes-to-guesses
+                            for key in guesses-plist by #'cddr
+                            for guess in (cdr guesses-plist) by #'cddr
+                            appending (list key (+ change guess)))))
+                   (if (or (loop for change across changes-to-guesses
+                              always (> epsilon (abs change)))
+                           (>= number-of-iterations maximum-iterations))
+                       (values new-guesses-plist
+                               (lambda (datum)
                                  (apply fitting-function
-                                        (append
-                                         (list (intern (symbol-name var)
-                                                       "KEYWORD")
-                                               datum)
-                                         initial-guesses-plist)))
-                               xdata))
-         (residuals (mapcar #'- ydata-true ydata-fitted))
-         (jacobian (unless (and jacobian^T jacobian^T-jacobian)
-                     (jacobian expr var xdata initial-guesses-plist)))
-         (jacobian^T (or jacobian^T
-                         (matrix-transpose jacobian)))
-         (jacobian^T-jacobian (or jacobian^T-jacobian
-                                  (matrix-multiply jacobian^T jacobian)))
-         (jacobian^T-residuals (matrix-multiply jacobian^T residuals))
-         (changes-to-guesses (solve-system jacobian^T-jacobian
-                                           jacobian^T-residuals))
-         (new-guesses-plist (loop for change across changes-to-guesses
-                               for key in initial-guesses-plist by #'cddr
-                               for guess in (cdr initial-guesses-plist) by #'cddr
-                               appending (list key (+ change guess)))))
-    (if (loop for change across changes-to-guesses always (< (abs change)
-                                                             epsilon))
-        (values new-guesses-plist
-                (lambda (x)
-                  (apply fitting-function (cons (intern (symbol-name var)
-                                                        "KEYWORD")
-                                                (cons x new-guesses-plist))))
-                nil)
-        (least-squares expr var data new-guesses-plist
-                       :fitting-function fitting-function
-                       :epsilon epsilon
-                       :jacobian^T jacobian^T
-                       :jacobian^T-jacobian jacobian^T-jacobian))))
+                                        (cons interned-var
+                                              (cons datum new-guesses-plist))))
+                               (/ (apply #'+ (mapcar #'/
+                                                     (mapcar (lambda (residual)
+                                                               (expt residual 2))
+                                                             residuals)
+                                                     y-variances))
+                                  (- (length y-variances)
+                                     (/ (length guesses-plist)
+                                        2)))
+                               number-of-iterations)
+                       (least-squares-fit fitting-function new-guesses-plist)))))
+      (least-squares-fit fitting-function initial-guesses-plist)))))

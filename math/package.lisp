@@ -9,4 +9,6 @@
            :jacobian
            :matrix-transpose
            :matrix-multiply
+           :identity-matrix
+           :diagonal-matrix
            :solve-system))
