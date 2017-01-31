@@ -1,10 +1,7 @@
-(ql:quickload "lisp-unit")
-#-xlisp-test (load "cl-phys")
-
 (in-package #:cl-user)
 
 (defpackage #:cl-phys-test
-  (:use #:cl #:cl-coveralls #:prove))
+  (:use #:cl #:cl-coveralls #:prove #:cl-phys))
 
 (in-package #:cl-phys-test)
 
