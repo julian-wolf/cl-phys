@@ -31,5 +31,5 @@ script:
                   (lambda (c h)
                     (declare (ignore c h))
                     (uiop:quit -1)))'
-  - cl -e '(coveralls:with-coveralls (:exclude (list "cl-phys-test.lisp"))
+       -e '(coveralls:with-coveralls (:exclude (list "cl-phys-test.lisp"))
              (ql:quickload :cl-phys-test))'
