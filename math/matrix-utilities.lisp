@@ -1,5 +1,20 @@
 (in-package :cl-phys.math)
 
+(defgeneric %copy-matrix-simple (matrix)
+  (:documentation "Copy a simple numeric matrix."))
+
+(defmethod %copy-matrix-simple ((matrix array))
+  (let* ((dimensions (array-dimensions matrix))
+         (output-matrix (make-array dimensions
+                                    :initial-element 0)))
+    (dotimes (i (array-total-size matrix))
+      (setf (row-major-aref output-matrix i)
+            (row-major-aref matrix i)))
+    output-matrix))
+
+(defmethod %copy-matrix-simple ((matrix cons))
+  (copy-list matrix))
+
 (defgeneric matrix-transpose (original-matrix)
   (:documentation "Transpose a matrix."))
 
@@ -8,10 +23,10 @@
          (n (array-dimension original-matrix 1))
          (transposed-matrix (make-array (list n m)
                                         :initial-element nil)))
-    (loop for i from 0 below m
-       do (loop for j from 0 below n
-             do (setf (aref transposed-matrix j i)
-                      (aref original-matrix i j))))
+    (dotimes (i m)
+       (dotimes (j n)
+	 (setf (aref transposed-matrix j i)
+	       (aref original-matrix i j))))
     transposed-matrix))
 
 (defmethod matrix-transpose ((original-matrix cons))
@@ -22,37 +37,65 @@
 Cons cells are promoted to simple-arrays when arguments are
 given of mixed types."))
 
+(defmethod matrix-multiply ((matrix number) &rest other-matrices)
+  (case (length other-matrices)
+    (0 matrix)
+    (1 (let ((other-matrix (car other-matrices)))
+         (if (numberp other-matrix)
+             (* matrix other-matrix)
+             (matrix-multiply other-matrix matrix))))
+    (otherwise
+     (let ((other-matrix (car other-matrices)))
+       (if (numberp other-matrix)
+           (apply #'matrix-multiply (cons (* matrix other-matrix)
+                                          (cdr other-matrices)))
+           (apply #'matrix-multiply (cons (car other-matrices)
+                                          (cons matrix
+                                                (cdr other-matrices)))))))))
+
 (defmethod matrix-multiply ((matrix array) &rest other-matrices)
   (case (length other-matrices)
     (0 matrix)
-    (1 (let* ((other-matrix (car other-matrices))
-              (other-matrix (if (subtypep (type-of other-matrix)
-                                          'array)
-                                other-matrix
-                                (make-array (list (length other-matrix)
-                                                  (if (listp (car other-matrix))
-                                                      (length (car other-matrix))
-                                                      1))
-                                            :initial-contents
-                                            (if (listp (car other-matrix))
-                                                other-matrix
-                                                (mapcar #'list
-                                                        other-matrix)))))
-              (m (array-dimension matrix 0))
-              (n (array-dimension matrix 1))
-              (l (array-dimension other-matrix 1))
-              (matrix-product (make-array (list m l)
-                                          :initial-element nil)))
-         (if (= n (array-dimension other-matrix 0))
-             (progn
-               (loop for i from 0 below m
-                  do (loop for k from 0 below l
-                        do (setf (aref matrix-product i k)
-                                 (loop for j from 0 below n
-                                    summing (* (aref matrix i j)
-                                               (aref other-matrix j k))))))
+    (1 (let ((other-matrix (car other-matrices)))
+         (if (numberp other-matrix)
+             (let* ((multiple other-matrix)
+                    (m (array-dimension matrix 0))
+                    (n (array-dimension matrix 1))
+                    (matrix-product (make-array (list m n)
+                                                :initial-element nil)))
+               (dotimes (i m)
+                 (dotimes (j n)
+                   (setf (aref matrix-product i j)
+                         (* multiple (aref matrix i j)))))
                matrix-product)
-             (error "Matrix dimensions must match."))))
+             (let* ((other-matrix (if (subtypep (type-of other-matrix)
+                                                'array)
+                                      other-matrix
+                                      (make-array
+                                       (list (length other-matrix)
+                                             (if (listp (car other-matrix))
+                                                 (length (car other-matrix))
+                                                 1))
+                                       :initial-contents
+                                       (if (listp (car other-matrix))
+                                           other-matrix
+                                           (mapcar #'list
+                                                   other-matrix)))))
+                    (m (array-dimension matrix 0))
+                    (n (array-dimension matrix 1))
+                    (l (array-dimension other-matrix 1))
+                    (matrix-product (make-array (list m l)
+                                                :initial-element nil)))
+               (if (= n (array-dimension other-matrix 0))
+                   (progn
+                     (dotimes (i m)
+                       (dotimes (k l)
+                         (setf (aref matrix-product i k)
+                               (loop for j from 0 below n
+                                  summing (* (aref matrix i j)
+                                             (aref other-matrix j k))))))
+                     matrix-product)
+                   (error "Matrix dimensions must match."))))))
     (otherwise (matrix-multiply matrix
                                 (apply #'matrix-multiply other-matrices)))))
 
@@ -67,6 +110,12 @@ given of mixed types."))
                                                (length (car matrix)))
                                          :initial-contents matrix)
                              other-matrix))
+           ((numberp other-matrix)
+            (mapcar (lambda (row)
+                      (mapcar (lambda (entry)
+                                (* entry other-matrix))
+                              row))
+                    matrix))
            ((= (length (car matrix))
                (length other-matrix))
             (mapcar (lambda (row)
@@ -103,11 +152,6 @@ with elements given by diagonals."))
             1))
     matrix))
 
-(defgeneric solve-system (matrix input-vector)
-  (:documentation "Solve a system A x = b for x, given
-the matrix A and the input-vector b. Methods should
-use Gaussian elimination with partial pivoting."))
-
 (defun %n-swap-rows (matrix a b &optional
                                   (min-index 0)
                                   (max-index (- (array-dimension matrix 1) 1)))
@@ -121,7 +165,16 @@ use Gaussian elimination with partial pivoting."))
             old-matrix-a-k-val)))
   matrix)
 
-(defmethod solve-system ((matrix array) input-vector)
+(defun solve-system (matrix input-vector)
+  (n-solve-system (%copy-matrix-simple matrix)
+                  (%copy-matrix-simple input-vector)))
+
+(defgeneric n-solve-system (matrix input-vector)
+  (:documentation "Solve a system A x = b for x, given
+the matrix A and the input-vector b. Methods should
+use Gaussian elimination with partial pivoting."))
+
+(defmethod n-solve-system ((matrix array) input-vector)
   (if (apply #'= (array-dimensions matrix))
       (let* ((n (array-dimension matrix 1))
              (solution-vector (make-array n :initial-element nil)))
@@ -175,3 +228,79 @@ use Gaussian elimination with partial pivoting."))
                    (aref matrix k k))))
         solution-vector)
       (error "Input matrix must be square.")))
+
+(defun matrix-inverse (matrix)
+  (n-matrix-inverse (%copy-matrix-simple matrix)))
+
+(defgeneric n-matrix-inverse (matrix)
+  (:documentation "Invert an n-by-n matrix.
+For non-square matrices, methods should return
+the Moore-Penrose pseudoinverse."))
+
+(defmethod n-matrix-inverse ((matrix array))
+  (if (apply #'= (array-dimensions matrix))
+      (let* ((n (array-dimension matrix 1))
+             (inverse-matrix (identity-matrix n)))
+        (do ((k 0 (1+ k)))
+            ((= k n))
+          (let* ((max-index (loop
+                               with max-index = k
+                               with max-val = (abs (aref matrix k k))
+                               for l from (1+ k) below n
+                               when (> (abs (aref matrix l k)) max-val)
+                               do (setf max-val (abs (aref matrix l k))
+                                        max-index l)
+                               end
+                               finally (return max-index)))
+                 (max-val (aref matrix max-index k)))
+            (if (zerop max-val)
+                (error "Matrix is singular!")
+                (progn
+                  (%n-swap-rows matrix k max-index k (1- n))
+                  (%n-swap-rows inverse-matrix k max-index 0 (1- n)))))
+          (let ((kth-diagonal (aref matrix k k)))
+            (unless (= kth-diagonal 1)
+              (do ((j (1+ k) (1+ j)))
+                  ((= j n))
+                (setf (aref matrix k j)
+                      (/ (aref matrix k j)
+                         kth-diagonal)))
+              (do ((j 0 (1+ j)))
+                  ((= j n))
+                (setf (aref inverse-matrix k j)
+                      (/ (aref inverse-matrix k j)
+                         kth-diagonal)))
+              (setf (aref matrix k k)
+                    1)))
+          (do ((i (1+ k) (1+ i)))
+              ((= i n))
+            (let ((multiplier (aref matrix i k)))
+              (unless (zerop multiplier)
+                (do ((j (1+ k) (1+ j)))
+                    ((= j n))
+                  (setf (aref matrix i j)
+                        (- (aref matrix i j)
+                           (* multiplier (aref matrix k j)))))
+                (do ((j 0 (1+ j)))
+                    ((= j n))
+                  (setf (aref inverse-matrix i j)
+                        (- (aref inverse-matrix i j)
+                           (* multiplier (aref inverse-matrix k j)))))))))
+        (do ((k (1- n) (1- k)))
+            ((minusp k))
+          (do ((i (1- k) (1- i)))
+              ((minusp i))
+            (let ((multiplier (aref matrix i k)))
+              (unless (zerop multiplier)
+                (do ((j 0 (1+ j)))
+                    ((= j n))
+                  (setf (aref inverse-matrix i j)
+                        (- (aref inverse-matrix i j)
+                           (* multiplier (aref inverse-matrix k j)))))))))
+        inverse-matrix)
+      (let ((transposed-matrix (matrix-transpose matrix)))
+        (matrix-multiply (n-matrix-inverse (matrix-multiply transposed-matrix
+                                                          matrix))
+                         transposed-matrix))))
+
+                          
