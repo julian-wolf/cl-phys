@@ -1,0 +1,39 @@
+language: lisp
+
+sudo: required
+
+env:
+  matrix:
+    - LISP=sbcl
+    - LISP=allegro
+    - LISP=abcl
+    - LISP=cmucl
+    - LISP=clisp
+
+matrix:
+  allow_failures:
+    - env: LISP=cmucl
+    - env: LISP=allegro
+
+install:
+  - ./.travis-install.sh;
+  
+os:
+  - osx
+  - linux
+
+notifications:
+  email: false
+
+script:
+  - cl -e '(ql:quickload :cl-phys-test)
+           (rtest:do-tests)
+	   (unless (null (rtest:pending-tests))
+             (uiop:quit 1))'
+  - cl -e '(ql:quickload :cl-travis-test)
+           (pushnew :force-test-failure *features*)
+           (rtest:do-tests)
+           (unless (null (rtest:pending-tests))
+             (uiop:quit 1))';
+    [ $? -eq 1 ]
+    

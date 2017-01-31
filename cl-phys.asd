@@ -1,5 +1,5 @@
 (asdf:defsystem #:cl-phys
-  :version 0.1
+  :version "0.1"
   :license "GPLv3"
   :author "Julian Wolf <julian.wolf@mail.mcgill.ca>"
   :description "cl-phys attempts to wrap up
