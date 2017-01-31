@@ -3,5 +3,7 @@
   :license "GPLv3"
   :author "Julian Wolf <julian.wolf@mail.mcgill.ca>"
   :description "test-suite for cl-phys"
-  :depends-on (#:cl-phys.fitting)
+  :depends-on (#:cl-phys
+	       #:cl-coveralls
+	       #:prove)
   :components ((:file "cl-phys-test")))

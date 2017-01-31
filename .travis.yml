@@ -4,11 +4,9 @@ sudo: required
 
 env:
   matrix:
-    - LISP=sbcl
+    - LISP=sbcl COVERALLS=true
     - LISP=allegro
-    - LISP=abcl
     - LISP=cmucl
-    - LISP=clisp
 
 matrix:
   allow_failures:
@@ -26,14 +24,13 @@ notifications:
   email: false
 
 script:
-  - cl -e '(ql:quickload :cl-phys-test)
-           (rtest:do-tests)
-	   (unless (null (rtest:pending-tests))
-             (uiop:quit 1))'
-  - cl -e '(ql:quickload :cl-travis-test)
-           (pushnew :force-test-failure *features*)
-           (rtest:do-tests)
-           (unless (null (rtest:pending-tests))
-             (uiop:quit 1))';
-    [ $? -eq 1 ]
+  - cl -l fiveam -l cl-coveralls
+       -e '(setf fiveam:*debug-on-error* t
+                 fiveam:*debug-on-failure* t)'
+       -e '(setf *debugger-hook*
+                  (lambda (c h)
+                    (declare (ignore c h))
+                    (uiop:quit -1)))'
+  - cl -e '(coveralls:with-coveralls (:exclude (list "cl-phys-test.lisp"))
+             (ql:quickload :cl-phys-test))'
     

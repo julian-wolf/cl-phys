@@ -4,7 +4,7 @@
 (in-package #:cl-user)
 
 (defpackage #:cl-phys-test
-  (:use #:cl #:rtest))
+  (:use #:cl #:cl-coveralls #:prove))
 
 (in-package #:cl-phys-test)
 
