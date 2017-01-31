@@ -14,8 +14,8 @@ matrix:
     - env: LISP=allegro
 
 install:
-  - ./.travis-install.sh;
-  
+  - curl -L https://github.com/luismbo/cl-travis/raw/master/install.sh | sh
+
 os:
   - osx
   - linux
@@ -33,4 +33,3 @@ script:
                     (uiop:quit -1)))'
   - cl -e '(coveralls:with-coveralls (:exclude (list "cl-phys-test.lisp"))
              (ql:quickload :cl-phys-test))'
-    
