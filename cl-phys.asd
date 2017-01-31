@@ -5,8 +5,7 @@
   :description "cl-phys attempts to wrap up
 useful fitting and data visualization methods
 into a convenient suite for Common Lisp."
-  :depends-on (#:cl-phys.fitting
-               ; #:cl-phys.visualization
-               #:cl-phys.math)
-  :components ((:file "package"))
-  :serial t)
+  :depends-on (#:cl-phys.math
+	       #:cl-phys.fitting)
+  :components ((:file "package")))
+

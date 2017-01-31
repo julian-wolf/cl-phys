@@ -1,3 +1,5 @@
+(in-package #:cl-user)
+
 (defpackage #:cl-phys.math
   (:use :cl)
   (:export :differentiate-analytic
