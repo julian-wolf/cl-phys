@@ -32,4 +32,7 @@ script:
                     (declare (ignore c h))
                     (uiop:quit -1)))'
        -e '(coveralls:with-coveralls (:exclude (list "cl-phys-test.lisp"))
+             (ql:quickload :cl-phys.math)
+             (ql:quickload :cl-phys.fitting)
+             (ql:quickload :cl-phys)
              (ql:quickload :cl-phys-test))'
