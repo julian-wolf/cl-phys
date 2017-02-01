@@ -63,6 +63,10 @@ interned, and a list of variables that have been interned."
                ,converted-expression)
             'function)))
 
+(defun expression->basis-functions (expr)
+  "Extract the basis functions of an expression"
+  nil) ; TODO: figure out how to do this
+
 (defun depends-on (var expr)
   (let ((val (car expr)))
     (cond

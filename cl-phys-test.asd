@@ -5,5 +5,5 @@
   :description "test-suite for cl-phys"
   :depends-on (#:cl-phys
 	       #:cl-coveralls
-	       #:prove)
+	       #:lisp-unit)
   :components ((:file "cl-phys-test")))
