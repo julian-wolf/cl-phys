@@ -25,10 +25,13 @@ notifications:
   email: false
 
 script:
-  - cl -l cl-coveralls
-       -e '(setf *debugger-hook*
+  - cl -e '(setf *debugger-hook*
                   (lambda (c h)
                     (declare (ignore c h))
                     (uiop:quit -1)))'
-       -e '(coveralls:with-coveralls (:exclude (list "cl-phys-test.lisp"))
-             (ql:quickload :cl-phys-test))'
+       -e '(in-package :cl-user)'
+       -e '#+sbcl (ql:quickload :cl-coveralls)'
+       -e '(ql:quickload :cl-phys-test)'
+       -e '#+sbcl (coveralls:with-coveralls (:exclude (list "cl-phys-test.lisp"))
+                    (cl-phys-test:run-all-tests))
+       -e '#-sbcl (cl-phys-test:run-all-tests)
